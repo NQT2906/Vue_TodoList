@@ -1,6 +1,11 @@
 import { createApp } from "vue";
 import App from "./App.vue";
+import ButtonCustom from "@/components/Button/ButtonCustom.vue";
 
 import "./assets/main.css";
 
-createApp(App).mount("#app");
+const app = createApp(App);
+
+app.config.errorHandler = (err, req, res) => {};
+app.component("ButtonCustom", ButtonCustom);
+app.mount("#app");
