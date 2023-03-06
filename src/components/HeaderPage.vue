@@ -1,8 +1,14 @@
 <template>
-  <span>Header</span>
+  <span>{{ header }}</span>
 </template>
 
-<script setup></script>
+<script>
+export default {
+  props: {
+    header: String,
+  },
+};
+</script>
 
 <style scoped>
 span {
