@@ -21,6 +21,7 @@
           :list="item.listJobs"
           group="item.name"
           :item-key="item.name"
+          @change="onDragChange"
         >
           <template
             v-for="_element in item.listJobs"
@@ -33,7 +34,7 @@
               v-if="element.title !== ''"
             >
               <span @click="onEdit(element)">{{ element.title }}</span>
-              <Button class="button-icon" @click="onDelete">
+              <Button class="button-icon" @click="onDelete(element)">
                 <template #icon><DeleteOutlined /></template>
               </Button>
             </div>
@@ -73,6 +74,39 @@ const state = reactive({
   elementSelected: {},
   openEditModal: false,
 });
+
+const onDragChange = async (event) => {
+  console.log({ event });
+  const keys = Object.keys(event);
+  if (keys.includes("removed") || keys.includes("moved")) {
+    const newValues = [...state.todoList].map((todoValue) => {
+      return {
+        ...todoValue,
+        listJobs: todoValue.listJobs
+          .map((subValue, index) => {
+            if (index !== 0) {
+              return {
+                ...subValue,
+                status: todoValue.name,
+                index: todoValue.listJobs.length - index,
+              };
+            } else {
+              return null;
+            }
+          })
+          .filter((subValue) => subValue),
+      };
+    });
+    await axiosInstance.post(
+      "/api/todo/bulk",
+      {
+        todoList: newValues,
+      },
+      { params: { id: "Test" } }
+    );
+  } else if (keys.includes("added")) {
+  }
+};
 
 const todoListLabel = state.todoList.map((jobs) => {
   return { label: jobs.name, value: jobs.name };
@@ -120,22 +154,34 @@ const getData = () => {
         name: todoSection.name,
         listJobs:
           listJobsTemp?.length > 0
-            ? listJobsTemp?.length === 1
-              ? [defaultTitle, ...listJobsTemp]
-              : [...listJobsTemp]
+            ? [defaultTitle, ...listJobsTemp]
             : [defaultTitle],
       };
     });
   });
 };
 
-const onDelete = () => {
+const onDelete = (element) => {
+  const newValues = { ...element };
+
   Modal.confirm({
-    title: "Confirm",
-    icon: createVNode(ExclamationCircleOutlined),
-    content: "Bla bla ...",
-    okText: "确认",
-    cancelText: "取消",
+    title: "Delete task",
+    content: "Are you sure to delete it?",
+    okText: "Delete",
+    cancelText: "Cancel",
+    maskClosable: true,
+    onOk: async () => {
+      console.log({ newValues });
+      await axiosInstance
+        .delete(`/api/todo`, {
+          params: {
+            id: newValues._id,
+          },
+        })
+        .then(async () => {
+          await getData();
+        });
+    },
   });
 };
 
