@@ -76,7 +76,6 @@ const state = reactive({
 });
 
 const onDragChange = async (event) => {
-  console.log({ event });
   const keys = Object.keys(event);
   if (keys.includes("removed") || keys.includes("moved")) {
     const newValues = [...state.todoList].map((todoValue) => {
@@ -171,7 +170,6 @@ const onDelete = (element) => {
     cancelText: "Cancel",
     maskClosable: true,
     onOk: async () => {
-      console.log({ newValues });
       await axiosInstance
         .delete(`/api/todo`, {
           params: {
