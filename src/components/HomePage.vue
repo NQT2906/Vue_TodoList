@@ -2,8 +2,12 @@
   <div class="container">
     <HeaderPage :header="'Todo List'" />
     <ModalAdd
-      :addJobs="addNewJob && addNewJob"
+      :addJobs="addJobs && addJobs"
+      :editJobs="editJobs && editJobs"
       :todoListLabel="todoListLabel && todoListLabel"
+      :elementSelected="state.elementSelected"
+      :openEditModal="state.openEditModal"
+      :resetModal="resetModal"
     />
     <div class="content">
       <div
@@ -23,8 +27,15 @@
             :key="element.id"
             v-slot:item="{ element }"
           >
-            <div class="item-subcontent" :slot="'item2-' + index">
-              {{ element }}
+            <div
+              class="item-subcontent"
+              :slot="'item-' + item.name + '-' + index"
+              v-if="element.title !== ''"
+            >
+              <span @click="onEdit(element)">{{ element.title }}</span>
+              <Button class="button-icon" @click="onDelete">
+                <template #icon><DeleteOutlined /></template>
+              </Button>
             </div>
           </template>
         </draggable>
@@ -34,46 +45,103 @@
 </template>
 
 <script setup>
-import { computed, reactive } from "vue";
+import { onMounted, reactive } from "vue";
+import draggable from "vuedraggable";
+import { axiosInstance } from "../axios.config";
 import HeaderPage from "./HeaderPage.vue";
 import ModalAdd from "./ModalAdd.vue";
-import draggable from "vuedraggable";
+import { Button, Modal } from "ant-design-vue";
+import { DeleteOutlined } from "@ant-design/icons-vue";
+
+const defaultTitle = { title: "" };
 
 const state = reactive({
   todoList: [
     {
-      name: "Todo",
-      listJobs: ["Xem phim", "Xem phim1", "Xem phim2"],
+      name: "To Do",
+      listJobs: [defaultTitle],
     },
     {
       name: "Doing",
-      listJobs: ["Netflix and chill"],
+      listJobs: [defaultTitle],
     },
     {
       name: "Done",
-      listJobs: ["Học bài"],
+      listJobs: [defaultTitle],
     },
   ],
+  elementSelected: {},
+  openEditModal: false,
 });
 
 const todoListLabel = state.todoList.map((jobs) => {
   return { label: jobs.name, value: jobs.name };
 });
 
-const addNewJob = (newJob, at) => {
-  if (state.todoList) {
-    state.todoList = state.todoList.map((jobs) => {
-      if (jobs.name === at) {
-        return {
-          name: jobs.name,
-          listJobs: [newJob, ...jobs.listJobs],
-        };
-      } else {
-        return jobs;
-      }
+const addJobs = async (values) => {
+  const newValues = { ...values };
+  await axiosInstance
+    .post("/api/todo", {
+      ...newValues,
+    })
+    .then(async () => {
+      await getData();
     });
-  }
 };
+
+const editJobs = async (values) => {
+  const newValues = { ...values };
+  await axiosInstance
+    .patch(`/api/todo/${newValues._id}`, {
+      ...newValues,
+    })
+    .then(async () => {
+      await getData();
+    });
+};
+
+const onEdit = (element) => {
+  state.elementSelected = element;
+  state.openEditModal = true;
+};
+
+const resetModal = () => {
+  state.elementSelected = {};
+  state.openEditModal = false;
+};
+
+const getData = () => {
+  axiosInstance.get("/api/todo").then((response) => {
+    state.todoList = state.todoList.map((todoSection) => {
+      const listJobsTemp = response?.data?.todoList?.filter((value) => {
+        return value.status === todoSection.name;
+      });
+      return {
+        name: todoSection.name,
+        listJobs:
+          listJobsTemp?.length > 0
+            ? listJobsTemp?.length === 1
+              ? [defaultTitle, ...listJobsTemp]
+              : [...listJobsTemp]
+            : [defaultTitle],
+      };
+    });
+  });
+};
+
+const onDelete = () => {
+  Modal.confirm({
+    title: "Confirm",
+    icon: createVNode(ExclamationCircleOutlined),
+    content: "Bla bla ...",
+    okText: "确认",
+    cancelText: "取消",
+  });
+};
+
+onMounted(() => {
+  getData();
+});
 </script>
 
 <style scoped>
@@ -125,11 +193,34 @@ const addNewJob = (newJob, at) => {
   padding: 0.5rem;
   margin: 5px;
   background-color: #00796b;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-subcontent > span {
   font-weight: bold;
   color: #fff;
 }
 .item-subcontent:hover {
   cursor: grab;
+}
+
+.button-icon {
+  background-color: transparent;
+  border: none;
+  color: #fff;
+  z-index: 1000;
+}
+.button-icon:hover,
+.button-icon:active,
+.button-icon:focus {
+  background-color: transparent;
+  border: none;
+  color: #fff;
+  outline-color: none;
+  box-shadow: none;
 }
 
 ::-webkit-scrollbar {
