@@ -1,48 +1,52 @@
 <template>
-  <div class="container">
-    <HeaderPage :header="'Todo List'" />
-    <ModalAdd
-      :addJobs="addJobs && addJobs"
-      :editJobs="editJobs && editJobs"
-      :todoListLabel="todoListLabel && todoListLabel"
-      :elementSelected="state.elementSelected"
-      :openEditModal="state.openEditModal"
-      :resetModal="resetModal"
-    />
-    <div class="content">
-      <div
-        class="sub-container"
-        v-for="(item, index) in state.todoList"
-        :key="index"
-      >
-        <div class="item-content-header">{{ item.name }}</div>
-        <draggable
-          class="item-content"
-          :list="item.listJobs"
-          group="item.name"
-          :item-key="item.name"
-          @change="onDragChange"
+  <Spin :spinning="state.loading" wrapper-class-name="spin-loading">
+    <div class="container">
+      <HeaderPage :header="'Todo List'" />
+      <ModalAdd
+        :addJobs="addJobs && addJobs"
+        :editJobs="editJobs && editJobs"
+        :todoListLabel="todoListLabel && todoListLabel"
+        :elementSelected="state.elementSelected"
+        :openEditModal="state.openEditModal"
+        :resetModal="resetModal"
+      />
+      <div class="content">
+        <div
+          class="sub-container"
+          v-for="(item, index) in state.todoList"
+          :key="index"
         >
-          <template
-            v-for="_element in item.listJobs"
-            :key="element.id"
-            v-slot:item="{ element }"
+          <div class="item-content-header">{{ item.name }}</div>
+          <draggable
+            class="item-content"
+            :list="item.listJobs"
+            group="item.name"
+            :item-key="item.name"
+            @change="onDragChange"
           >
-            <div
-              class="item-subcontent"
-              :slot="'item-' + item.name + '-' + index"
-              v-if="element.title !== ''"
+            <template
+              v-for="_element in item.listJobs"
+              :key="element.id"
+              v-slot:item="{ element }"
             >
-              <span @click="onEdit(element)">{{ element.title }}</span>
-              <Button class="button-icon" @click="onDelete(element)">
-                <template #icon><DeleteOutlined /></template>
-              </Button>
-            </div>
-          </template>
-        </draggable>
+              <div
+                class="item-subcontent"
+                :slot="'item-' + item.name + '-' + index"
+                v-if="element.title !== ''"
+              >
+                <span @click="onEdit(element, item.name)">{{
+                  element.title
+                }}</span>
+                <Button class="button-icon" @click="onDelete(element)">
+                  <template #icon><DeleteOutlined /></template>
+                </Button>
+              </div>
+            </template>
+          </draggable>
+        </div>
       </div>
     </div>
-  </div>
+  </Spin>
 </template>
 
 <script setup>
@@ -51,7 +55,7 @@ import draggable from "vuedraggable";
 import { axiosInstance } from "../axios.config";
 import HeaderPage from "./HeaderPage.vue";
 import ModalAdd from "./ModalAdd.vue";
-import { Button, Modal } from "ant-design-vue";
+import { Button, Modal, Spin } from "ant-design-vue";
 import { DeleteOutlined } from "@ant-design/icons-vue";
 
 const defaultTitle = { title: "" };
@@ -73,6 +77,7 @@ const state = reactive({
   ],
   elementSelected: {},
   openEditModal: false,
+  loading: false,
 });
 
 const onDragChange = async (event) => {
@@ -113,28 +118,36 @@ const todoListLabel = state.todoList.map((jobs) => {
 
 const addJobs = async (values) => {
   const newValues = { ...values };
+  state.loading = true;
   await axiosInstance
     .post("/api/todo", {
       ...newValues,
     })
     .then(async () => {
       await getData();
+    })
+    .finally(() => {
+      state.loading = false;
     });
 };
 
 const editJobs = async (values) => {
   const newValues = { ...values };
+  state.loading = true;
   await axiosInstance
     .patch(`/api/todo/${newValues._id}`, {
       ...newValues,
     })
     .then(async () => {
       await getData();
+    })
+    .finally(() => {
+      state.loading = false;
     });
 };
 
-const onEdit = (element) => {
-  state.elementSelected = element;
+const onEdit = (element, status) => {
+  state.elementSelected = { ...element, status };
   state.openEditModal = true;
 };
 
@@ -144,25 +157,30 @@ const resetModal = () => {
 };
 
 const getData = () => {
-  axiosInstance.get("/api/todo").then((response) => {
-    state.todoList = state.todoList.map((todoSection) => {
-      const listJobsTemp = response?.data?.todoList?.filter((value) => {
-        return value.status === todoSection.name;
+  state.loading = true;
+  axiosInstance
+    .get("/api/todo")
+    .then((response) => {
+      state.todoList = state.todoList.map((todoSection) => {
+        const listJobsTemp = response?.data?.todoList?.filter((value) => {
+          return value.status === todoSection.name;
+        });
+        return {
+          name: todoSection.name,
+          listJobs:
+            listJobsTemp?.length > 0
+              ? [defaultTitle, ...listJobsTemp]
+              : [defaultTitle],
+        };
       });
-      return {
-        name: todoSection.name,
-        listJobs:
-          listJobsTemp?.length > 0
-            ? [defaultTitle, ...listJobsTemp]
-            : [defaultTitle],
-      };
+    })
+    .finally(() => {
+      state.loading = false;
     });
-  });
 };
 
 const onDelete = (element) => {
   const newValues = { ...element };
-
   Modal.confirm({
     title: "Delete task",
     content: "Are you sure to delete it?",
@@ -170,6 +188,8 @@ const onDelete = (element) => {
     cancelText: "Cancel",
     maskClosable: true,
     onOk: async () => {
+      state.loading = true;
+
       await axiosInstance
         .delete(`/api/todo`, {
           params: {
@@ -178,6 +198,9 @@ const onDelete = (element) => {
         })
         .then(async () => {
           await getData();
+        })
+        .finally(() => {
+          state.loading = false;
         });
     },
   });
@@ -195,6 +218,12 @@ onMounted(() => {
   align-items: center;
   width: 100%;
 }
+
+.spin-loading {
+  width: 100%;
+  height: 100%;
+}
+
 .content {
   display: flex;
   flex-direction: row;
