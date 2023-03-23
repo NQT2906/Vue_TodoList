@@ -1,3 +1,6 @@
+
+# Can view product in [this site](https://delightful-coast-000a49900.2.azurestaticapps.net)
+
 # TodoList
 
 This template should help get you started developing with Vue 3 in Vite.
