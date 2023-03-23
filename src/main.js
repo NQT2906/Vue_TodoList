@@ -1,8 +1,6 @@
+import ButtonCustom from "@/components/Button/ButtonCustom.vue";
 import { createApp } from "vue";
 import App from "./App.vue";
-import ButtonCustom from "@/components/Button/ButtonCustom.vue";
-import axios from "axios";
-import VueAxios from "vue-axios";
 
 import "ant-design-vue/dist/antd.css";
 import "./assets/main.css";
